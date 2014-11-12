@@ -427,9 +427,11 @@ MPI_Barrier(MPI_COMM_WORLD);
          !((config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
            (config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_2ND))) ||
         (StopCalc) ||
-        (((config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
-          (config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_2ND)) &&
-         ((ExtIter == 0) || (ExtIter % config_container[ZONE_0]->GetWrt_Sol_Freq_DualTime() == 0)))) {
+        ((config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_1ST) &&
+         ((ExtIter == 0) || (ExtIter % config_container[ZONE_0]->GetWrt_Sol_Freq_DualTime() == 0))) ||
+        ((config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_2ND) &&
+         ((ExtIter == 0) || (ExtIter % config_container[ZONE_0]->GetWrt_Sol_Freq_DualTime() == 0) ||
+          (ExtIter % config_container[ZONE_0]->GetWrt_Sol_Freq_DualTime()-1 == 0)))) {
           
           /*--- Low-fidelity simulations (using a coarser multigrid level
            approximation to the solution) require an interpolation back to the

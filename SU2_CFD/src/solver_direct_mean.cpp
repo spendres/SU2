@@ -8923,7 +8923,10 @@ void CEulerSolver::SetFreeSurface_Distance(CGeometry *geometry, CConfig *config)
       
     }
     
-    if ((rank == MASTER_NODE) && (iExtIter % config->GetWrt_Sol_Freq_DualTime() == 0)) {
+    if ((rank == MASTER_NODE) && ((iExtIter % config->GetWrt_Sol_Freq_DualTime() == 0) ||
+                                  (iExtIter % config->GetWrt_Sol_Freq_DualTime()-1 == 0))) {
+
+
       
       /*--- Write the Level Set distribution, the target level set---*/
       LevelSet_file.precision(15);
