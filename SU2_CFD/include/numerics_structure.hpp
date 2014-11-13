@@ -1496,7 +1496,7 @@ public:
 	 * \param[out] val_stiffmatrix_elem - Stiffness matrix for Galerkin computation.
 	 * \param[in] config - Definition of the particular problem.
 	 */
-	virtual void SetFEA_StiffMatrix2D(double **StiffMatrix_Elem, double CoordCorners[8][3], unsigned short nNodes);
+	virtual void SetFEA_StiffMatrix2D(double **StiffMatrix_Elem, double CoordCorners[8][3], unsigned short nNodes, unsigned short form2d);
   
   /*!
 	 * \brief Computing stiffness matrix of the Galerkin method.
@@ -1504,6 +1504,20 @@ public:
 	 * \param[in] config - Definition of the particular problem.
 	 */
 	virtual void SetFEA_StiffMatrix3D(double **StiffMatrix_Elem, double CoordCorners[8][3], unsigned short nNodes);
+
+  /*!
+	 * \brief Computing stresses in FEA method.
+	 * \param[in] config - Definition of the particular problem.
+	 */
+	virtual void GetFEA_StressNodal2D(double StressVector[8][3], double DispElement[8], double CoordCorners[8][3], unsigned short nNodes, unsigned short form2d);
+
+
+  /*!
+	 * \brief Computing stresses in FEA method.
+	 * \param[in] config - Definition of the particular problem.
+	 */
+	virtual void GetFEA_StressNodal3D(double StressVector[8][6], double DispElement[24], double CoordCorners[8][3], unsigned short nNodes);
+
 
   /*!
 	 * \brief Computes a basis of orthogonal vectors from a suppled vector
@@ -3952,7 +3966,7 @@ public:
 	 * \param[out] val_stiffmatrix_elem - Stiffness matrix for Galerkin computation.
 	 * \param[in] config - Definition of the particular problem.
 	 */
-	void SetFEA_StiffMatrix2D(double **StiffMatrix_Elem, double CoordCorners[8][3], unsigned short nNodes);
+	void SetFEA_StiffMatrix2D(double **StiffMatrix_Elem, double CoordCorners[8][3], unsigned short nNodes, unsigned short form2d);
   
   /*!
 	 * \brief Computing stiffness matrix of the Galerkin method.
@@ -3960,7 +3974,20 @@ public:
 	 * \param[in] config - Definition of the particular problem.
 	 */
 	void SetFEA_StiffMatrix3D(double **StiffMatrix_Elem, double CoordCorners[8][3], unsigned short nNodes);
-  
+
+  /*!
+	 * \brief Computing stresses in FEA method at the nodes.
+	 * \param[in] config - Definition of the particular problem.
+	 */
+	void GetFEA_StressNodal2D(double StressVector[8][3], double DispElement[8], double CoordCorners[8][3], unsigned short nNodes, unsigned short form2d);
+
+
+  /*!
+	 * \brief Computing stresses in FEA method at the nodes.
+	 * \param[in] config - Definition of the particular problem.
+	 */
+	void GetFEA_StressNodal3D(double StressVector[8][6], double DispElement[24], double CoordCorners[8][3], unsigned short nNodes);
+
 };
 
 /*!

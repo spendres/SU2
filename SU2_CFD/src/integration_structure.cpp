@@ -134,13 +134,19 @@ void CIntegration::Space_Integration(CGeometry *geometry,
         solver_container[MainSolver]->BC_Normal_Load(geometry, solver_container, numerics[CONV_BOUND_TERM], config, iMarker);
         break;
       case PRESSURE_BOUNDARY:
-        solver_container[MainSolver]->BC_Pressure(geometry, solver_container, numerics[CONV_BOUND_TERM], config, iMarker);
-        break;
+		solver_container[MainSolver]->BC_Pressure(geometry, solver_container, numerics[CONV_BOUND_TERM], config, iMarker);
+		break;
       case NEUMANN:
-        solver_container[MainSolver]->BC_Neumann(geometry, solver_container, numerics[CONV_BOUND_TERM], config, iMarker);
-        break;
-    }
-  }
+		solver_container[MainSolver]->BC_Neumann(geometry, solver_container, numerics[CONV_BOUND_TERM], config, iMarker);
+		break;
+      case CLAMPED_BOUNDARY:
+		solver_container[MainSolver]->BC_Clamped(geometry, solver_container, numerics[CONV_BOUND_TERM], config, iMarker);
+		break;
+      case LOAD_DIR_BOUNDARY:
+		solver_container[MainSolver]->BC_Dir_Load(geometry, solver_container, numerics[CONV_BOUND_TERM], config, iMarker);
+		break;
+		}
+	}
   
   /*--- Strong boundary conditions (Navier-Stokes and Dirichlet type BCs) ---*/
   
