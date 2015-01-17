@@ -1,28 +1,28 @@
 ## \file config.py
 #  \brief python package for config 
 #  \author T. Lukaczyk, F. Palacios
-#  \version 3.2.5 "eagle"
+#  \version 3.2.7 "eagle"
 #
-# Copyright (C) 2012-2014 SU2 <https://github.com/su2code>.
+# Copyright (C) 2012-2014 SU2 Core Developers.
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# SU2 is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# SU2 is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# You should have received a copy of the GNU Lesser General Public
+# License along with SU2. If not, see <http://www.gnu.org/licenses/>.
 
 # ----------------------------------------------------------------------
 #  Imports
 # ----------------------------------------------------------------------
 
-import os, sys, shutil, copy
+import os, sys, shutil, copy, re
 import numpy as np
 from ..util import bunch, ordered_bunch, switch
 from .tools import *
@@ -82,20 +82,34 @@ class Config(ordered_bunch):
         # initialize ordered bunch
         super(Config,self).__init__(*args,**kwarg)
         
-        # read config if it exists
+        # read config
         if filename:
-            try:
-                self.read(filename)
-            except:
-                raise IOError , 'Could not find config file: %s' % filename
-        
+            self.read(filename)
+
         self._filename = filename
     
     def read(self,filename):
         """ reads from a config file """
-        konfig = read_config(filename)
-        self.update(konfig)
+        assert os.path.exists(filename) , ('unable to find config file: %s' % filename)
+        lines = list()
+        try:
+            with open(filename) as f:
+                lines = list(f)
+                f.close()
+        except IOError:
+            raise
         
+        try:
+            data = preprocess_config(lines)
+            konfig = validate_config(data)
+            self.update(konfig)
+        except:
+            print 'Unexpected error: ',sys.exc_info()[0]
+            raise
+
+        
+                           
+    
     def write(self,filename=''):
         """ updates an existing config file """
         if not filename: filename = self._filename
@@ -172,6 +186,7 @@ class Config(ordered_bunch):
     def local_files(self):
         """ removes path prefix from all *_FILENAME params
         """
+        print "in local_files"
         for key,value in self.iteritems():
             if key.split('_')[-1] == 'FILENAME':
                 self[key] = os.path.basename(value)    
@@ -190,6 +205,8 @@ class Config(ordered_bunch):
                 config_diff.MATH_PROBLEM = ['DIRECT','ADJOINT']
                 
         """
+
+        print "computing difference between configs"
         
         keys = set([])
         keys.update( self.keys() )
@@ -219,6 +236,8 @@ class Config(ordered_bunch):
             Returns a large value otherwise
                 
         """        
+
+        print "computing distance between configs"
 
         konfig_diff = self.diff(konfig)
         
@@ -263,40 +282,81 @@ class Config(ordered_bunch):
 
 
 
-
-
-
-
 # -------------------------------------------------------------------
-#  Get SU2 Configuration Parameters
+#  Preprocess SU2 Configuration File
 # -------------------------------------------------------------------
+def preprocess_config(lines):
+    """ test for common formatting errors """
 
-def read_config(filename):
-    """ reads a config file """
-      
+    ignore = re.compile(r'^\r\n|^\s*%|^\s*$')
+    warn = re.compile(r'^\s*#|!')
+    delimiter = re.compile(r'=')
+    spaces = re.compile(r'^(\s*)=(\s*)\r?$')
+    blank_param = re.compile(r'^=(.+)\r?$')
+    blank_value = re.compile(r'^(.+)=\r?$')
+    basic = re.compile(r'^(.+)=(.+)\r?$')
+
+    assert not len(lines)==0 , 'Cofig file error: empty config specification'
+    ignored = [l for l in lines if ignore.match(l)]
+    warned = [l for l in lines if warn.match(l)]
+    assert not warned ,  'Config file error: found line(s) using unexpected format: \r\n%s' % ''.join(warned)
+    specs = [l for l in lines if l not in ignored and l not in warned]
+
+    parameters = [l for l in specs if delimiter.match(l) ]
+    duplicates = [l for l in parameters if parameters.count(l)>1 ]
+    assert not duplicates , 'Config file error: duplicate lines found: \r\n%s' % ''.join(duplicates)
+
+    missing = [ l for l in specs if not delimiter.search(l)]
+    assert not missing , 'Config file error: following lines missing required delimiter: \'=\' sign: \r\n%s' % ''.join(missing)
+
+    missing = [ l for l in specs if spaces.match(l)]
+    assert not missing , 'Config file error: following lines use spaces for parameter name or value: \r\n%s' % ''.join(missing)
+
+    missing = [ l for l in specs if blank_param.match(l)]
+    assert not missing , 'Config file error: following lines are missing parameter(s): \r\n%s' % ''.join(missing)
+   
+    missing = [ l for l in specs if blank_value.match(l)]
+    assert not missing , 'Config file error: following lines are missing values for parameters(s): \r\n%s' % ''.join(missing)
+
+    
+    missing = [ l for l in specs if not basic.match(l)]
+    assert not missing , 'Config file error: following lines missing value for parameter(s): \r\n%s' % ''.join(missing)
+    
+    
+    parameters = [basic.match(l).group(1) for l in specs]
+    duplicates = set([l for l in parameters if parameters.count(l)>1 ])
+    
+    assert not duplicates , 'Config file error: duplicate specifications found for parameter(s): \r\n%s' % '\r\n'.join(duplicates)
+    
     # initialize output dictionary
     data_dict = OrderedDict()
+    for l in specs:
+        try:
+            data_dict[basic.match(l).group(1).strip()] = basic.match(l).group(2).strip()
+        except:
+            print "Config file error: unexpected error in line: " , l
+            raise
     
-    input_file = open(filename)
+    filenames = []
+    for (key,value) in data_dict.items():
+        if re.search(r'FILENAME',key):
+            if re.search(r'\s',value):
+                filenames.append(key+':\''+value+'\'')
+    assert not filenames , 'Config file errors: filenames must not contain spaces: \r\n%s' % '\r\n'.join(filenames) 
+
+    return data_dict
+
+# -------------------------------------------------------------------
+#  Validate SU2 Configuration Parameters
+# -------------------------------------------------------------------
+
+def validate_config(data_dict):
+    """ validate config spec """
     
-    # process each line
-    while 1:
-        # read the line
-        line = input_file.readline()
-        if not line:
-            break
-        
-        # remove line returns
-        line = line.strip('\r\n')
-        # make sure it has useful data
-        if (not "=" in line) or (line[0] == '%'):
-            continue
-        # split across equals sign
-        line = line.split("=",1)
-        this_param = line[0].strip()
-        this_value = line[1].strip()
-        
-        assert not data_dict.has_key(this_param) , ('Config file has multiple specifications of %s' % this_param )
+    # process each parameter
+    for (this_param,this_value) in data_dict.items():
+   
+
         for case in switch(this_param):
             
             # comma delimited lists of strings with or without paren's
@@ -366,12 +426,6 @@ def read_config(filename):
             if case("WRT_SOL_FREQ")           :
                 data_dict[this_param] = float(this_value)
                 break   
-            
-            # boolean parameters
-            if case("DECOMPOSED")             :
-                this_value = this_value.upper()
-                data_dict[this_param] = this_value == "TRUE" or this_value == "1"
-                break 
             
             # int parameters
             if case("NUMBER_PART")            : pass
@@ -510,17 +564,19 @@ def read_config(filename):
         #: for case
         
     #: for line
-    
-    # some defaults
-    if not data_dict.has_key('DECOMPOSED'):
-        data_dict['DECOMPOSED'] = False
-    
+
     #hack - twl
     if not data_dict.has_key('DV_VALUE_NEW'):
         data_dict['DV_VALUE_NEW'] = [0]
     if not data_dict.has_key('DV_VALUE_OLD'):
         data_dict['DV_VALUE_OLD'] = [0]
-
+    if not data_dict.has_key('OPT_ITERATIONS'):
+        data_dict['OPT_ITERATIONS'] = 100
+    if not data_dict.has_key('OPT_ACCURACY'):
+        data_dict['OPT_ACCURACY'] = 1e-10
+    if not data_dict.has_key('BOUND_DV'):
+        data_dict['BOUND_DV'] = 1e10
+    
     return data_dict
     
 #: def read_config()
@@ -648,13 +704,7 @@ def write_config(filename,param_dict):
             if case("EXT_ITER")               :
                 output_file.write("%i" % new_value)
                 break
-            
-            # boolean parameters
-            if case("DECOMPOSED")             :
-                new_value = str(new_value).upper()
-                output_file.write(new_value)
-                break             
-            
+                        
             if case("DEFINITION_DV") :
                 n_dv = len(new_value['KIND'])
                 if not n_dv:
